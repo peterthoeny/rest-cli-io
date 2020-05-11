@@ -1,0 +1,22 @@
+{
+    "name": "rest-cli-io-js",
+    "version": "0.1.0",
+    "description": "REST CLI I/O node.js application to securely execute shell scripts and system commands",
+    "author": "Peter Thoeny",
+    "license": "MIT",
+    "homepage": "https://github.com/peterthoeny/rest-cli-io-js/",
+    "main": "rest-cli-io.js",
+    "scripts": {
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/peterthoeny/rest-cli-io-js.git"
+    },
+    "bugs": {
+        "url": "https://github.com/peterthoeny/rest-cli-io-js/issues"
+    },
+    "devDependencies": {
+    },
+    "dependencies": {
+    }
+}
