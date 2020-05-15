@@ -92,26 +92,35 @@ app.get('/api/1/cli/run/*', function (req, res) {
         sendResponse(req.url, body, res);
         return;
     }
-    var arguments = commandConf.arguments.map(function(arg) {
-        return arg.replace(/\%PARAM\{([^\}]*)\}\%/g, function(m, p1) {
-            var val = req.query[p1] || '';
-            return val;
+    var args = [];
+    commandConf.arguments.forEach(function(arg) {
+        arg = arg.replace(/\%PARAM\{([^\}]*)\}\%/g, function(m, p1) {
+            var param = p1.replace(/:.*$/, '');
+            var split = p1.match(/:/) ? true : false;
+            var val = req.query[param] || '';
+            if(split) {
+                val.split(/ +/).forEach(function(a) {
+                    args.push(a);
+                });
+                return '';
+            } else {
+                return val;
+            }
         });
+        if(arg != '') {
+            args.push(arg);
+        }
     });
-console.log(`arguments: ${arguments}`);
-    var subprocess = spawn(commandConf.command, arguments, commandConf.options);
+    var subprocess = spawn(commandConf.command, args, commandConf.options);
     var stderr = '';
     var stdout = '';
     subprocess.stdout.on('data', function(data) {
-console.log(`stdout: ${data}`);
         stdout += data;
     });
     subprocess.stderr.on('data', function(data) {
-console.error(`stderr: ${data}`);
         stderr += data;
     });
-    subprocess.on('close', function(code) {
-console.log(`child process exited with code ${code}`);
+    subprocess.on('close', function(exitCode) {
         if(stderr) {
             var body = {
                 error: 'Could not execute command with ID ' + commandID + ': ' + stderr
