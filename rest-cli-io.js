@@ -1,23 +1,27 @@
-/* rest-cli-io: REST Command Line Interface I/O web-app to securely execute shell scripts and system commands
- */
+// rest-cli-io.js: REST CLI I/O API to securely execute shell scripts and system commands
+// Copyright: Peter Thoeny, https://github.com/peterthoeny/rest-cli-io
+// License: MIT
 
-// modules
+// required modules
 const express = require('express');
-const fs = require('fs');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const bodyParser = require('body-parser');
 
 // load rest-cli-io configuration - it defines the conf variable
 try {
     require('/etc/rest-cli-io.conf');
 } catch(error) {
-    require('./rest-cli-io.conf');
+    try {
+        require('rest-cli-io.conf');
+    } catch(error) {
+        require(__dirname + '/rest-cli-io.conf');
+    }
 }
 
 // globals
-var version = 'rest-cli-io-2020-05-11';
+var version = 'rest-cli-io-2020-05-14';
 var app = express();
-var pathRe = new RegExp('^/api/1/cli/run/([a-zA-Z0-9\\_\\-]+)(\\?.*)?$');
+var uriRe = new RegExp('^/api/1/cli/run/([a-zA-Z0-9][a-zA-Z0-9\\_\\-]*)(\\?.*)?$');
 var usage = [
     'REST CLI I/O usage:',
     '- Execute command:  GET /api/1/cli/run/<commandID>?<param>=<value>',
@@ -32,9 +36,6 @@ var usage = [
     '    ' + Object.keys(conf.commands).sort().join(', '),
     '- Version: ' + version
 ];
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit:50000 }));
-app.use(express.static(__dirname + '/public'));
 
 function log(msg) {
     var now = new Date();
@@ -60,14 +61,20 @@ function sendResponse(url, body, res, contentType) {
 
 app.get('/api/1/cli/list*', function (req, res) {
     var body = {
-        data: Object.keys(conf.commands).sort(),
-        error: ''
+        data: '',
+        error: 'Sorry, command listing is disabled'
+    }
+    if(conf.allowCmdList) {
+        body = {
+            data: Object.keys(conf.commands).sort(),
+            error: ''
+        }
     }
     sendResponse(req.url, body, res);
 });
 
 app.get('/api/1/cli/run/*', function (req, res) {
-    if(!req.url.match(pathRe)) {
+    if(!req.url.match(uriRe)) {
         var body = {
             data: usage,
             error: 'Unrecognized URI, or missing/unsupported command ID: ' + req.url
@@ -75,9 +82,9 @@ app.get('/api/1/cli/run/*', function (req, res) {
         sendResponse(req.url, body, res);
         return;
     }
-    var commandID = req.url.replace(pathRe, '$1');
-    var commandDef = conf.commands[commandID];
-    if(!commandDef) {
+    var commandID = req.url.replace(uriRe, '$1');
+    var commandConf = conf.commands[commandID];
+    if(!commandConf) {
         var body = {
             data: '',
             error: 'Unrecognized command ID ' + commandID
@@ -85,14 +92,29 @@ app.get('/api/1/cli/run/*', function (req, res) {
         sendResponse(req.url, body, res);
         return;
     }
-    var cmd = commandDef.execute.replace(/\%PARAM\{([^\}]*)\}\%/g, function(m, p1) {
-        var val = req.query[p1] || '';
-        return val;
+    var arguments = commandConf.arguments.map(function(arg) {
+        return arg.replace(/\%PARAM\{([^\}]*)\}\%/g, function(m, p1) {
+            var val = req.query[p1] || '';
+            return val;
+        });
     });
-    exec(cmd, function(err, stdout, stderr) {
-        if(err) {
+console.log(`arguments: ${arguments}`);
+    var subprocess = spawn(commandConf.command, arguments, commandConf.options);
+    var stderr = '';
+    var stdout = '';
+    subprocess.stdout.on('data', function(data) {
+console.log(`stdout: ${data}`);
+        stdout += data;
+    });
+    subprocess.stderr.on('data', function(data) {
+console.error(`stderr: ${data}`);
+        stderr += data;
+    });
+    subprocess.on('close', function(code) {
+console.log(`child process exited with code ${code}`);
+        if(stderr) {
             var body = {
-                error: 'Could not execute command with ID ' + commandID + ': ' + err
+                error: 'Could not execute command with ID ' + commandID + ': ' + stderr
             }
             sendResponse(req.url, body, res);
         } else {
@@ -122,7 +144,8 @@ app.get('/api/1/cli/run/*', function (req, res) {
 });
 
 app.get('/favicon.ico', function (req, res) {
-    res.sendFile('favicon.ico');
+    log('/favicon.ico');
+    res.sendFile(__dirname + '/public/favicon.ico');
 });
 
 app.post('/*', function (req, res) {
