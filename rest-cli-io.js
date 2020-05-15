@@ -55,8 +55,32 @@ function sendResponse(url, body, res, contentType) {
         res.contentType('file.json');
         body = JSON.stringify(body, null, '    ');
     }
-    log(url + ', ' + JSON.stringify(body.replace(/[\n\r]+/g, ' ').replace(/^(.{100}).*(.{30})$/, '$1 ... $2')));
+    log(url + ', ' + JSON.stringify(body).replace(/[\n\r]+/g, ' ').replace(/^(.{100}).*(.{30})$/, '$1 ... $2'));
     res.send(body);
+}
+
+function expandOutputString(text, stdout, stderr, code) {
+    return text
+    .replace(/\%STDOUT\%/g, stdout)
+    .replace(/\%STDERR\%/g, stderr)
+    .replace(/\%CODE\%/g, code);
+}
+
+function expandOutputObject(obj, stdout, stderr, code) {
+    //console.log('in:  '+JSON.stringify(obj)+', stdout: '+stdout+', stderr: '+stderr+', code: '+code);
+    if(Array.isArray(obj)) {
+        obj = obj.map(function(item) {
+            return expandOutputObject(item, stdout, stderr, code);
+        });
+    } else if(typeof obj === 'object') {
+        Object.keys(obj).forEach(function(key) {
+            obj[key] = expandOutputObject(obj[key], stdout, stderr, code);
+        });
+    } else if(typeof obj === 'string') {
+        obj = expandOutputString(obj, stdout, stderr, code);
+    } // else keep as is
+    //console.log('out: '+JSON.stringify(obj));
+    return obj;
 }
 
 app.get('/api/1/cli/list*', function (req, res) {
@@ -111,6 +135,7 @@ app.get('/api/1/cli/run/*', function (req, res) {
             args.push(arg);
         }
     });
+    //console.log('args: '+JSON.stringify(args));
     var subprocess = spawn(commandConf.command, args, commandConf.options);
     var stderr = '';
     var stdout = '';
@@ -121,34 +146,48 @@ app.get('/api/1/cli/run/*', function (req, res) {
         stderr += data;
     });
     subprocess.on('close', function(exitCode) {
-        if(stderr) {
-            var body = {
-                error: 'Could not execute command with ID ' + commandID + ': ' + stderr
+        var bodyFormat;
+        var contentType = 'text/plain';
+        if(commandConf.output) {
+            if(commandConf.output.body) {
+                bodyFormat = commandConf.output.body;
+                if(typeof bodyFormat === 'object') {
+                    contentType = 'application/json';
+                }
             }
-            sendResponse(req.url, body, res);
-        } else {
-            if(req.query.contentType) {
-                sendResponse(req.url, stdout, res, req.query.contentType);
-            } else {
-                if(stdout.match(/^\s*[\{\[][\s\S]*[\}\]]\s*$/)) {
-                    try {
-                        stdout = JSON.parse(stdout);
-                    } catch(e) {
-                        var body = {
-                            data: stdout,
-                            error: e.toString()
-                        }
-                        sendResponse(req.url, body, res);
-                        return;
-                    }
+            if(stderr && commandConf.output.error) {
+                bodyFormat = commandConf.output.error;
+                if(typeof bodyFormat === 'object') {
+                    contentType = 'application/json';
                 }
-                var body = {
-                    data:   stdout,
-                    error:  ''
-                }
-                sendResponse(req.url, body, res);
+            }
+            if(commandConf.output.contentType) {
+                contentType = commandConf.output.contentType;
             }
         }
+        if(!bodyFormat) {
+            if(stderr) {
+                bodyFormat = 'Error: %STDERR%\nCode: %CODE%';
+            } else {
+                bodyFormat = '%STDOUT%';
+            }
+        }
+        var body = expandOutputObject(bodyFormat, stdout, stderr, exitCode);
+        /*
+        if(body.match(/^\s*[\{\[][\s\S]*[\}\]]\s*$/)) {
+            try {
+                body = JSON.parse(body);
+            } catch(e) {
+                var body = {
+                    data: body,
+                    error: e.toString()
+                }
+                sendResponse(req.url, body, res);
+                return;
+            }
+        }
+        */
+        sendResponse(req.url, body, res, contentType);
     });
 });
 
