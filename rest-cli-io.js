@@ -6,6 +6,7 @@
 const express = require('express');
 const { spawn } = require('child_process');
 const bodyParser = require('body-parser');
+const fs = require('fs')
 
 // load rest-cli-io configuration - it defines the conf variable
 try {
@@ -19,7 +20,7 @@ try {
 }
 
 // globals
-var version = 'rest-cli-io-2020-05-14';
+var version = 'rest-cli-io-2020-05-15';
 var app = express();
 var uriRe = new RegExp('^/api/1/cli/run/([a-zA-Z0-9][a-zA-Z0-9\\_\\-]*)(\\?.*)?$');
 var usage = [
@@ -49,13 +50,16 @@ function log(msg) {
 }
 
 function sendResponse(url, body, res, contentType) {
-    if(contentType) {
-        res.set('Content-Type', contentType);
-    } else {
+    if(contentType === 'application/json') {
         res.contentType('file.json');
         body = JSON.stringify(body, null, '    ');
+    } else if(contentType != 'application/json' && typeof body === 'object') {
+        res.set('Content-Type', contentType);
+        body = JSON.stringify(body, null, '    ');
+    } else if(contentType) {
+        res.set('Content-Type', contentType);
     }
-    log(url + ', ' + JSON.stringify(body).replace(/[\n\r]+/g, ' ').replace(/^(.{100}).*(.{30})$/, '$1 ... $2'));
+    log(url + ', ' + JSON.stringify(body).replace(/\\[nr]/g, ' ').replace(/\s+/g, ' ').replace(/^(.{100}).*(.{30})$/, '$1 ... $2'));
     res.send(body);
 }
 
@@ -116,6 +120,8 @@ app.get('/api/1/cli/run/*', function (req, res) {
         sendResponse(req.url, body, res);
         return;
     }
+    commandConf = JSON.parse(JSON.stringify(commandConf));
+    var command = commandConf.command.replace(/^\.\//, __dirname + '/');
     var args = [];
     commandConf.arguments.forEach(function(arg) {
         arg = arg.replace(/\%PARAM\{([^\}]*)\}\%/g, function(m, p1) {
@@ -136,7 +142,7 @@ app.get('/api/1/cli/run/*', function (req, res) {
         }
     });
     //console.log('args: '+JSON.stringify(args));
-    var subprocess = spawn(commandConf.command, args, commandConf.options);
+    var subprocess = spawn(command, args, commandConf.options);
     var stderr = '';
     var stdout = '';
     subprocess.stdout.on('data', function(data) {
@@ -173,6 +179,9 @@ app.get('/api/1/cli/run/*', function (req, res) {
             }
         }
         var body = expandOutputObject(bodyFormat, stdout, stderr, exitCode);
+        if(req.query.contentType) {
+            contentType = req.query.contentType;
+        }
         /*
         if(body.match(/^\s*[\{\[][\s\S]*[\}\]]\s*$/)) {
             try {
@@ -191,11 +200,6 @@ app.get('/api/1/cli/run/*', function (req, res) {
     });
 });
 
-app.get('/favicon.ico', function (req, res) {
-    log('/favicon.ico');
-    res.sendFile(__dirname + '/public/favicon.ico');
-});
-
 app.post('/*', function (req, res) {
     var body = {
         data: usage,
@@ -205,15 +209,24 @@ app.post('/*', function (req, res) {
 });
 
 app.get('/*', function (req, res) {
-    if(req.url === '/') {
+    if(req.url.match(/^\/(index\.html)?(\?.*)?$/)) {
         var body = usage.join('\n');
         sendResponse(req.url, body, res, 'text/plain');
     } else {
-        var body = {
-            data: usage,
-            error:  'Unrecognized URI ' + req.url
-        }
-        sendResponse(req.url, body, res);
+        var filePath = __dirname + '/public' + req.url.replace(/\?.*$/, '');
+        fs.access(filePath, fs.F_OK, function(err) {
+            if (err) {
+                var body = {
+                    data: usage,
+                    error:  'Unrecognized URI ' + req.url
+                }
+                sendResponse(req.url, body, res, 'application/json');
+            } else {
+                // regular file
+                log(req.url);
+                res.sendFile(filePath);
+            }
+        });
     }
 });
 
