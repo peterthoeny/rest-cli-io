@@ -20,7 +20,7 @@ try {
 }
 
 // globals
-var version = 'rest-cli-io-2020-05-15';
+var version = 'rest-cli-io-2020-05-19';
 var app = express();
 var uriRe = new RegExp('^/api/1/cli/run/([a-zA-Z0-9][a-zA-Z0-9\\_\\-]*)(\\?.*)?$');
 var usage = [
@@ -54,7 +54,7 @@ function sendResponse(url, body, res, contentType) {
         res.contentType('file.json');
         body = JSON.stringify(body, null, '    ');
     } else if(contentType != 'application/json' && typeof body === 'object') {
-        res.set('Content-Type', contentType);
+        res.set('Content-Type', contentType || 'application/json');
         body = JSON.stringify(body, null, '    ');
     } else if(contentType) {
         res.set('Content-Type', contentType);
@@ -107,7 +107,7 @@ app.get('/api/1/cli/run/*', function (req, res) {
             data: usage,
             error: 'Unrecognized URI, or missing/unsupported command ID: ' + req.url
         }
-        sendResponse(req.url, body, res);
+        sendResponse(req.url, body, res, req.query.contentType);
         return;
     }
     var commandID = req.url.replace(uriRe, '$1');
@@ -117,7 +117,7 @@ app.get('/api/1/cli/run/*', function (req, res) {
             data: '',
             error: 'Unrecognized command ID ' + commandID
         }
-        sendResponse(req.url, body, res);
+        sendResponse(req.url, body, res, req.query.contentType);
         return;
     }
     commandConf = JSON.parse(JSON.stringify(commandConf));
@@ -205,7 +205,7 @@ app.post('/*', function (req, res) {
         data: usage,
         error: 'Unrecognized URI ' + req.url
     }
-    sendResponse(req.url, body, res);
+    sendResponse(req.url, body, res, req.query.contentType);
 });
 
 app.get('/*', function (req, res) {
@@ -220,7 +220,7 @@ app.get('/*', function (req, res) {
                     data: usage,
                     error:  'Unrecognized URI ' + req.url
                 }
-                sendResponse(req.url, body, res, 'application/json');
+                sendResponse(req.url, body, res, req.query.contentType);
             } else {
                 // regular file
                 log(req.url);
