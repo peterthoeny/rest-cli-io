@@ -115,4 +115,15 @@ The `allowCmdList` setting determines if the command list is available via the `
 
 The `port` setting defines the port number the application is using.
 
+## Package Files
+
+- `LICENSE` - MIT license file
+- `README.md` - documentation
+- `bin/man.sh` - sample script
+- `package.json` - package definition
+- `package-lock.json` - node_modules dependencies
+- `public/favicon.ico` - favicon, in case the API is used from a browser
+- `rest-cli-io.conf` - REST CLI I/O configuration template, copy to /etc and modify
+- `rest-cli-io.js` - REST CLI I/O application
+
 // EOF
