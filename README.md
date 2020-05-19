@@ -65,30 +65,30 @@ Example conf settings:
         port:           8071
     };
 
-#### `commands`
+#### `commands` Setting
 
-The `commands` setting lists all commands. Each command has these properties:
+The `commands` setting lists all commands, with command IDs, such as `echo`. Each command has these settings:
 
-`command`: The actual command or script
+`command` setting: The actual command or script
 
 - The PATH environmental variable is used as a search path if no path is specified
 - Use `./` prefix to point to the rest-cli-io directory root
 - The referenced commands must be executable by the rest-cli-io application user
 - rest-cli-io has a `bin` directory with a sample `man.sh` script that can be referenced as: `./bin/man.sh`
 
-`arguments`: Array of arguments
+`arguments` setting: Array of arguments
 
 - Specify a command specific argument list
 - Reference URI parameter values with `%PARAM{<name>}%`, such as `%PARAM{start}%`
 - If you want to split a parameter value on spaces, specify `%PARAM{<name>:split}%`, such as `%PARAM{expr:split}%`, which will split up parameter `expr=6+/+2` into arguments `[ '6', '/', '2' ]`
 
-`options`: Spawn options
+`options` setting: Spawn options
 
 - The child-process spawn options are optional
 - Use as defined in https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
 - *ATTENTION:* Do not use the `shell` property, where any input containing shell metacharacters may be used to trigger arbitrary command execution
 
-`output.body`: Body format on regular command execution
+`output.body` setting: Body format on regular command execution
 
 - Optional, defaults to just `%STDOUT%`
 - Can be a JSON object, such as:<br/>
@@ -97,21 +97,21 @@ The `commands` setting lists all commands. Each command has these properties:
 - `%STDERR%`: Is the `stderr` of the command
 - `%CODE%`: Is the exit code of the command, typically `0` on no error
 
-`output.error`: Body format on error
+`output.error` setting: Body format on error
 
 - Optional, defaults to `Error: %STDERR%\nCode: %CODE%`
 - Can be a JSON object as in the previous example
 
-`contentType`: Content-Type
+`contentType` setting: Content-Type
 
 - Optional, automatically set based on type of body (`text/plain` for text, or `application/json` for JSON)
 - This setting can be redefined with a `contentType` URI parameter
 
-#### `allowCmdList`
+#### `allowCmdList` Setting
 
 The `allowCmdList` setting determines if the command list is available via the `/api/1/cli/list` REST endpoint. Set to `0` to disable.
 
-#### `port`
+#### `port` Setting
 
 The `port` setting defines the port number the application is using.
 
