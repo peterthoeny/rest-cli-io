@@ -58,7 +58,7 @@ Example conf settings:
             },
             expr: {
                 command:        'expr',
-                arguments:      [ '%PARAM{p:split}%' ],
+                arguments:      [ '%PARAM{p:split}%' ]
             }
         },
         allowCmdList:   1,
