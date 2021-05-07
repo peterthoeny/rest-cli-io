@@ -18,9 +18,14 @@ try {
         require(__dirname + '/rest-cli-io.conf');
     }
 }
+var arg1 = process.argv[2] || '';
+var arg2 = process.argv[3] || '';
+if(arg1 === '--port' && arg2) {
+    conf.port = Number(arg2);
+}
 
 // globals
-var version = 'rest-cli-io-2020-05-19';
+var version = 'rest-cli-io-2021-05-06';
 var app = express();
 var uriRe = new RegExp('^/api/1/cli/run/([a-zA-Z0-9][a-zA-Z0-9\\_\\-]*)(\\?.*)?$');
 var usage = [
@@ -30,7 +35,7 @@ var usage = [
     '  - return if ok:    { "data": "....", "error": "" }',
     '  - return if error: { "error": "Command <commandID> not found" }',
     '  - optionally add return content-type, such as:',
-    '    GET /api/1/cli/echo?text=hello+world&contentType=text/plain',
+    '    GET /api/1/cli/run/echo?text=hello+world&contentType=text/plain',
     '- Query command IDs:  GET /api/1/cli/list',
     '  - return: { "data": "<id1>[, <id2>]", "error": "" }',
     '  - Currently registered command IDs:',
@@ -101,7 +106,31 @@ app.get('/api/1/cli/list*', function (req, res) {
     sendResponse(req.url, body, res);
 });
 
-app.get('/api/1/cli/run/*', function (req, res) {
+function _runCommand(isPost, req, res) {
+
+    function _expandParamsAndBody(txt) {
+        txt = txt.replace(/\%PARAM\{([^\}]*)\}\%/g, function(m, p1) {
+            var param = p1.replace(/:.*$/, '');
+            var split = p1.match(/:/) ? true : false;
+            var val = req.query[param] || '';
+            if(split) {
+                val.split(/ +/).forEach(function(a) {
+                    args.push(a);
+                });
+                return '';
+            } else {
+                return val;
+            }
+        }).replace(/\%BODY\%/g, function(m, p1) {
+            var body = req.body || '';
+            if(typeof body != 'string') {
+                body = body.toString();
+            }
+            return body;
+        });
+        return txt;
+    }
+
     if(!req.url.match(uriRe)) {
         var body = {
             data: usage,
@@ -124,25 +153,19 @@ app.get('/api/1/cli/run/*', function (req, res) {
     var command = commandConf.command.replace(/^\.\//, __dirname + '/');
     var args = [];
     commandConf.arguments.forEach(function(arg) {
-        arg = arg.replace(/\%PARAM\{([^\}]*)\}\%/g, function(m, p1) {
-            var param = p1.replace(/:.*$/, '');
-            var split = p1.match(/:/) ? true : false;
-            var val = req.query[param] || '';
-            if(split) {
-                val.split(/ +/).forEach(function(a) {
-                    args.push(a);
-                });
-                return '';
-            } else {
-                return val;
-            }
-        });
+        arg = _expandParamsAndBody(arg);
         if(arg != '') {
             args.push(arg);
         }
     });
     //console.log('args: '+JSON.stringify(args));
     var subprocess = spawn(command, args, commandConf.options);
+    if(isPost) {
+        var stdInData = _expandParamsAndBody(commandConf.stdin || '');
+        subprocess.stdin.setEncoding('utf-8');
+        subprocess.stdin.write(stdInData.replace(/[\r\n]*$/, '\n'));
+        subprocess.stdin.end();
+    }
     var stderr = '';
     var stdout = '';
     subprocess.stdout.on('data', function(data) {
@@ -198,6 +221,14 @@ app.get('/api/1/cli/run/*', function (req, res) {
         */
         sendResponse(req.url, body, res, contentType);
     });
+}
+
+app.get('/api/1/cli/run/*', function (req, res) {
+    _runCommand(false, req, res);
+});
+
+app.post('/api/1/cli/run/*', bodyParser.text({ type: '*/*', limit: '50mb' }), function (req, res) {
+    _runCommand(true, req, res);
 });
 
 app.post('/*', function (req, res) {

@@ -1,6 +1,6 @@
 {
     "name": "rest-cli-io",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "REST CLI I/O node.js application to securely execute shell scripts and system commands",
     "author": "Peter Thoeny",
     "license": "MIT",

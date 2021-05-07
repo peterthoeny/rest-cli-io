@@ -8,11 +8,13 @@ The REST Command Line Interface I/O (rest-cli-io) is a node.js application to ex
 
 ## Getting Started
 
-    $ git clone https://github.com/peterthoeny/rest-cli-io.git # or clone your own fork
-    $ cd rest-cli-io
-    $ sudo cp -p rest-cli-io.conf /etc   # modify as desired
-    $ npm install
-    $ node rest-cli-io
+```
+  $ git clone https://github.com/peterthoeny/rest-cli-io.git # or clone your own fork
+  $ cd rest-cli-io
+  $ sudo cp -p rest-cli-io.conf /etc   # modify /etc/rest-cli-io.conf as desired
+  $ npm install
+  $ node rest-cli-io
+```
 
 Visit http://localhost:8071/ to access the REST CLI I/O API.
 
@@ -27,7 +29,7 @@ For security, only registered commands and scripts are available via the REST CL
 - Endpoint: `GET /api/1/cli/run/<commandID>?<param>=<value>`
   - `<commandID>`: Registered command ID
   - Add optional command specific URI parameters, such as `p=hello+world&q=goodbye`
-  - Example: http://localhost:8071/api/1/cli/man?p=which
+  - Example: http://localhost:8071/api/1/cli/run/man?p=which
 - Return:
   - If ok: (text output of command, or a JSON object as defined in the settings)
   - If error: `{ "error": "Unrecognized command ID <commandID>" }`
@@ -78,9 +80,15 @@ The `commands` setting lists all commands, with command IDs, such as `echo`. Eac
 
 `arguments` setting: Array of arguments
 
-- Specify a command specific argument list
-- Reference URI parameter values with `%PARAM{<name>}%`, such as `%PARAM{start}%`
-- If you want to split a parameter value on spaces, specify `%PARAM{<name>:split}%`, such as `%PARAM{expr:split}%`, which will split up parameter `expr=6+/+2` into arguments `[ '6', '/', '2' ]`
+- Specify a command specific argument list as an array of strings
+- Reference URI parameter values with `%PARAM{<name>}%`, such as `'%PARAM{start}%'`
+- If you want to split a parameter value on spaces, specify `%PARAM{<name>:split}%`, such as `'%PARAM{expr:split}%'`, which will split up parameter `expr=6+/+2` into arguments `[ '6', '/', '2' ]`
+- Reference POST body with `'%BODY%'`; this requires a `text/plain` HTTP POST
+
+`stdin` setting: STDIN for command or script
+
+- Reference URI parameter values as described above, such as `'%PARAM{message}%'`
+- Reference POST body with `'%BODY%'`; this requires a `text/plain` HTTP POST
 
 `options` setting: Spawn options
 
@@ -109,11 +117,15 @@ The `commands` setting lists all commands, with command IDs, such as `echo`. Eac
 
 #### `allowCmdList` Setting
 
-The `allowCmdList` setting determines if the command list is available via the `/api/1/cli/list` REST endpoint. Set to `0` to disable.
+- The `allowCmdList` setting determines if the command list is available via the `/api/1/cli/list` REST endpoint. Set to `0` to disable.
 
 #### `port` Setting
 
-The `port` setting defines the port number the application is using.
+- The `port` setting defines the port number the application is using
+- It can be overloaded with a `--port` parameter, such as:
+```
+  $ node rest-cli-io --port 8088
+```
 
 ## Package Files
 
