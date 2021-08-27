@@ -25,7 +25,7 @@ if(arg1 === '--port' && arg2) {
 }
 
 // globals
-var version = 'rest-cli-io-2021-05-06';
+var version = 'rest-cli-io-2021-08-26';
 var app = express();
 var uriRe = new RegExp('^/api/1/cli/run/([a-zA-Z0-9][a-zA-Z0-9\\_\\-]*)(\\?.*)?$');
 var usage = [
@@ -173,6 +173,21 @@ function _runCommand(isPost, req, res) {
     });
     subprocess.stderr.on('data', function(data) {
         stderr += data;
+    });
+    subprocess.on('error', function (err) {
+        console.log('- subprocess error: ' + err);
+        var contentType = 'text/plain';
+        var bodyFormat = commandConf.output.error;
+        if(typeof bodyFormat === 'object') {
+            contentType = 'application/json';
+        } else {
+            bodyFormat = 'Error: %STDERR%\nCode: %CODE%';
+        }
+        var body = expandOutputObject(bodyFormat, '', err, 1);
+        if(req.query.contentType) {
+            contentType = req.query.contentType;
+        }
+        sendResponse(req.url, body, res, contentType);
     });
     subprocess.on('close', function(exitCode) {
         var bodyFormat;
