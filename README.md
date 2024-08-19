@@ -73,7 +73,7 @@ The `commands` setting lists all commands, with command IDs, such as `echo`. Eac
 
 `command` setting: The actual command or script
 
-- The PATH environmental variable is used as a search path if no path is specified
+- The PATH environment variable is used as a search path if no path is specified
 - Use `./` prefix to point to the rest-cli-io directory root
 - The referenced commands must be executable by the rest-cli-io application user
 - rest-cli-io has a `bin` directory with a sample `man.sh` script that can be referenced as: `./bin/man.sh`
