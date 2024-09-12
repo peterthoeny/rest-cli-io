@@ -1,4 +1,4 @@
-# REST CLI I/O (rest-cli-io)
+# REST CLI I/O (rest-cli-io) v1.1.2
 
 [![GitHub issues](https://img.shields.io/github/issues/peterthoeny/rest-cli-io)](https://github.com/peterthoeny/rest-cli-io/issues)
 [![GitHub stars](https://img.shields.io/github/stars/peterthoeny/rest-cli-io)](https://github.com/peterthoeny/rest-cli-io/stargazers)
